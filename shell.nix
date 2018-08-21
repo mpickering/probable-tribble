@@ -4,7 +4,9 @@ let
 
   inherit (nixpkgs) pkgs;
 
-  f = { mkDerivation, base, criterion, dump-core, stdenv, vector }:
+  f = { mkDerivation, base, criterion, dump-core, stdenv
+      , template-haskell, vector
+      }:
       mkDerivation {
         pname = "dyna-histo";
         version = "0.1.0.0";
@@ -12,7 +14,9 @@ let
         isLibrary = true;
         isExecutable = true;
         libraryHaskellDepends = [ base vector ];
-        executableHaskellDepends = [ base criterion dump-core vector ];
+        executableHaskellDepends = [
+          base criterion dump-core template-haskell vector
+        ];
         license = stdenv.lib.licenses.bsd3;
       };
 

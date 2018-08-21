@@ -1,11 +1,18 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE DeriveLift #-}
 module Paper where
 
 import Data.List
 import qualified Data.Vector.Unboxed as V
 import Debug.Trace
+import Language.Haskell.TH
+import Language.Haskell.TH.Syntax
+
+type Code a = Q (TExp a)
 
 data Cofree f a = Cofree a (f (Cofree f a)) deriving Functor
 
@@ -156,7 +163,7 @@ go Zero = 1
 go curr@(Next tree) =
   let n = compress curr
   in
-  traceShow n $
+  --traceShow n $
     (let v = n - 1
     in if v == 0 then 1
                  else if v > 0
@@ -275,7 +282,7 @@ chain_dyna n = dyna2 alg ping (four, expand n)
   where
     alg :: NE (Term Nat, Term Nat) (Cofree (NE (Term Nat, Term Nat)) Int)
             -> Int
-    alg t | traceShow (getIndex t) False = undefined
+    --alg t | traceShow (getIndex t) False = undefined
     alg (Some (m , In Zero)) = 1
     alg (Some (In Zero, In (Next n))) = 0
     alg (Cons (In Zero, _) _) = 0
@@ -287,10 +294,86 @@ chain_dyna n = dyna2 alg ping (four, expand n)
         Just v  -> cflookup2 table ((coin  * 5) - 1))
       + cflookup2 table 0
 
+{-
+data DynInt = Static Int
+            | Dynamic (Code Int)
+
+
+data NEDyn v x = SomeD v | ConsD v x  deriving (Show, Functor)
+
+
+--data Cofree f a = Cofree a (f (Cofree f a)) deriving Functor
+ping_s :: (Term Nat, DynInt) -> NEDyn (Term Nat, DynInt) (Term Nat, DynInt)
+ping_s (In Zero, Static n ) =
+  case n of
+    0 -> Some (In Zero , Static 0)
+    m -> Cons (In Zero, Static m) (four, m - 1)
+ping_s (In (Next m), Static n) =
+    case n of
+      0 -> Cons (In (Next m), In Zero) (m , In Zero)
+      n' -> Cons (In (Next m), n') (m, n')
 
 
 
+chain_dyna_s :: Code Int -> Code Int
+chain_dyna_s n = dyna2 alg ping_s (four, [|| expand $$n ||])
+  where
+    alg :: NE (Term Nat, Code (Term Nat)) (Cofree (NE (Term Nat, Code (Term Nat))) (Code Int))
+            -> Code Int
+    --alg t | traceShow (getIndex t) False = undefined
+    alg (Some (m , In Zero)) = 1
+    alg (Some (In Zero, In (Next n))) = 0
+    alg (Cons (In Zero, _) _) = 0
+    alg (Cons ((In (Next m)), n) table) =
+      let coin = coins `index` m
+      in
+      (case sub_nat n (expand coin)  of
+        Nothing -> 0
+        Just v  -> cflookup2 table ((coin  * 5) - 1))
+      + cflookup2 table 0
+      -}
 
+fib :: Int -> Int
+fib k = fibtable !! k
+
+fibtable = 0: 1 : [ fibtable !! (i - 1) + fibtable !! (i - 2) | i <- [2..]]
+
+fibtable2 :: [Int]
+fibtable2 = 0 : 1 : go 2
+  where
+    go k = fibtable2 !! (k - 1) + fibtable2 !! (k-2) : go (k + 1)
+
+ix :: Int -> Memo -> Int
+ix 0 (S k _) = k
+ix n (S _ m) = ix (n-1) m
+--ix n (D m) = [|| $$(m) !! n ||]
+
+data Memo = S Int Memo | D (Code [Int])
+
+result :: Code [Int]
+result = [|| let k = $$(flatten (fibtable3 [|| k ||]))
+             in k ||]
+
+flatten :: Memo -> Code [Int]
+flatten (S c m) = [|| c : $$(flatten m) ||]
+flatten (D l) = l
+
+fix f = let x = f x in x
+
+loop :: Code (Int -> [Int])
+loop = [|| fix $ \r k -> $$result !! (k - 1) + $$result !! (k-2) : r (k + 1) ||]
+
+fibtable3 :: Code [Int] -> Memo
+fibtable3 r = S 0 (S 1 (go 10 2))
+  where
+
+
+    go :: Int -> Int -> Memo
+--    go 0 k = D [|| $$(ix (k-1) fibtable3) + $$(ix (k-2) fibtable3) : $$(flatten (go 0 k)) ||]
+    go 0 k = D [|| let tail = fix $ \rec k' -> $$r !! (k' - 1) + $$r !! (k' - 2) : rec (k' + 1)
+                   in tail k ||]
+    go limit k = S ((ix (k - 1) (fibtable3 r)) + (ix (k - 2) (fibtable3 r)))
+                   (go (limit - 1) (k + 1))
 
 
 

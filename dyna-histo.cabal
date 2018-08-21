@@ -19,11 +19,11 @@ library
   exposed-modules:     Paper
   -- other-modules:
   other-extensions:    DeriveFunctor, ScopedTypeVariables
-  build-depends:       base, vector
+  build-depends:       base, vector, template-haskell
   -- hs-source-dirs:
   default-language:    Haskell2010
 
 executable benchmarks
   main-is: Bench.hs
-  build-depends: criterion, vector, base, dump-core
+  build-depends: criterion, vector, base, dump-core, template-haskell
   ghc-options: -O2 -fplugin=DumpCore
