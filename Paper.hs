@@ -343,6 +343,9 @@ fibtable2 = 0 : 1 : go 2
   where
     go k = fibtable2 !! (k - 1) + fibtable2 !! (k-2) : go (k + 1)
 
+
+-- Staged 1
+
 ix :: Int -> Memo -> Int
 ix 0 (S k _) = k
 ix n (S _ m) = ix (n-1) m
@@ -364,7 +367,7 @@ loop :: Code (Int -> [Int])
 loop = [|| fix $ \r k -> $$result !! (k - 1) + $$result !! (k-2) : r (k + 1) ||]
 
 fibtable3 :: Code [Int] -> Memo
-fibtable3 r = S 0 (S 1 (go 10 2))
+fibtable3 r = S 0 (S 1 (go 0 2))
   where
 
 
@@ -373,6 +376,32 @@ fibtable3 r = S 0 (S 1 (go 10 2))
     go 0 k = D [|| let tail = fix $ \rec k' -> $$r !! (k' - 1) + $$r !! (k' - 2) : rec (k' + 1)
                    in tail k ||]
     go limit k = S ((ix (k - 1) (fibtable3 r)) + (ix (k - 2) (fibtable3 r)))
+                   (go (limit - 1) (k + 1))
+
+-- Staged 2
+
+result_case :: Code (Int -> Int)
+result_case = [|| let k a = $$(flatten_case (fibtable4 [|| k ||])) a
+              in k ||]
+
+flatten_case = flatten_loop 0
+
+flatten_loop :: Int -> Memo -> Code (Int -> Int)
+flatten_loop n (S c m) = [|| \k -> if k == n
+                                    then c
+                                    else $$(flatten_loop (n + 1) m) k ||]
+flatten_loop n (D l) = [|| \k -> let r = $$l
+                                 in r !! (k - n) ||]
+
+fibtable4 :: Code (Int -> Int) -> Memo
+fibtable4 r = S 0 (S 1 (go 1000 2))
+  where
+
+
+    go :: Int -> Int -> Memo
+    go 0 k = D [|| let tail = fix $ \rec k' -> ($$r (k' - 1)) + ($$r (k' - 2)) : rec (k' + 1)
+                   in tail k ||]
+    go limit k = S ((ix (k - 1) (fibtable4 r)) + (ix (k - 2) (fibtable4 r)))
                    (go (limit - 1) (k + 1))
 
 
