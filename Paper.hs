@@ -11,6 +11,7 @@ import qualified Data.Vector.Unboxed as V
 import Debug.Trace
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
+import qualified Data.Vector as VN
 
 type Code a = Q (TExp a)
 
@@ -405,6 +406,11 @@ fibtable4 r = S 0 (S 1 (go 1000 2))
                    (go (limit - 1) (k + 1))
 
 
+fib_vector :: Int -> Int
+fib_vector k = fibtable VN.! k
+  where
+    fibtable = VN.generate (k + 1) kernel
 
-
-
+    kernel 0 = 0
+    kernel 1 = 1
+    kernel i = fibtable VN.! (i -1) + fibtable VN.! (i - 2)

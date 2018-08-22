@@ -24,4 +24,6 @@ main = defaultMain [
                  , bench "naive-1_000_000" $ whnf fib 100000
                  , bench "fib-100" $ whnf memoFix 1000
                  , bench "fib_case" $ whnf memoFix_case 1000
-                 , bench "fib_case 1_000_000" $ whnf memoFix_case 100000] ]
+                 , bench "fib_case 1_000_000" $ whnf memoFix_case 100000
+                 , bench "fib_vector" $ whnf fib_vector 1000
+                 , bench "fib_vector" $ whnf fib_vector 100000 ] ]
